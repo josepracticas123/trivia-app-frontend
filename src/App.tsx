@@ -1,12 +1,44 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { PasswordField } from './components/PasswordField'
 
 type Screen = "home" | "register" | "login";
 
 function App() {
   // Estado temporal para navegar sin instalar un router.
   const [screen, setScreen] = useState<Screen>("home");
+  // Cada campo controlado guarda su valor en el estado de React.
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [registerMessage, setRegisterMessage] = useState("");
+  const [loginMessage, setLoginMessage] = useState("");
 
-  // Pantallas de acceso: añadiremos los formularios reales en el siguiente paso.
+  function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (password.length < 8) {
+      setLoginMessage("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    setLoginMessage(
+      "Formulario válido. En el siguiente paso lo conectaremos al backend.",
+    );
+  }
+  // Por ahora validamos en el navegador. Más adelante enviaremos estos datos a la API.
+  function handleRegisterSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (password.length < 8) {
+      setRegisterMessage("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    setRegisterMessage(
+      "Formulario válido. En el siguiente paso lo enviaremos al backend.",
+    );
+  }
+  //Sección de acceso a crear cuenta, con sus inputs.
   if (screen !== "home") {
     const isRegister = screen === "register";
 
@@ -29,16 +61,110 @@ function App() {
             {isRegister ? "Crea tu cuenta" : "Inicia sesión"}
           </h1>
 
-          <p className="mt-3 leading-7 text-[#94A3B8]">
-            {isRegister
-              ? "En el siguiente paso añadiremos el formulario de registro."
-              : "En el siguiente paso añadiremos el formulario de inicio de sesión."}
-          </p>
+          {isRegister ? (
+            <form onSubmit={handleRegisterSubmit} className="mt-8 space-y-5">
+              <div>
+                <label
+                  htmlFor="name"
+                  className="mb-2 block text-sm font-semibold"
+                >
+                  Nombre
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                  autoComplete="name"
+                  className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-2 block text-sm font-semibold"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  autoComplete="email"
+                  className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
+                />
+              </div>
+
+              <PasswordField
+                id="password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                hint="Mínimo 8 caracteres."
+              />
+
+              {registerMessage && (
+                <p className="rounded-lg bg-[#28364D] p-3 text-sm text-[#F8FAFC]">
+                  {registerMessage}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0]"
+              >
+                Crear cuenta
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleLoginSubmit} className="mt-8 space-y-5">
+              <div>
+                <label
+                  htmlFor="login-email"
+                  className="mb-2 block text-sm font-semibold"
+                >
+                  Email
+                </label>
+                <input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  autoComplete="email"
+                  className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
+                />
+              </div>
+
+              <PasswordField
+                id="login-password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="current-password"
+              />
+
+              {loginMessage && (
+                <p className="rounded-lg bg-[#28364D] p-3 text-sm text-[#F8FAFC]">
+                  {loginMessage}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0]"
+              >
+                Iniciar sesión
+              </button>
+            </form>
+          )}
         </section>
       </main>
     );
   }
-
   return (
     <main className="min-h-screen bg-[#0B0F1A] px-4 py-6 text-[#F8FAFC] sm:py-10">
       <div className="mx-auto max-w-4xl">
@@ -73,7 +199,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setScreen("register")}
-                  className="rounded-xl bg-[#7C3AED] px-5 py-3.5 font-bold text-white transition hover:bg-[#6D28D9]"
+                  className="rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0]"
                 >
                   Crear cuenta
                 </button>
