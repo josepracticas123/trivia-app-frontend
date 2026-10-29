@@ -1,3 +1,5 @@
+/* Formulario de registro: crea cuenta y notifica a App al completar. */
+
 import { useState, type FormEvent } from 'react'
 import { apiRequest, ApiError } from '../api/http'
 import { PasswordField } from './PasswordField'

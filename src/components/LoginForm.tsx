@@ -1,3 +1,5 @@
+/* Formulario de login: valida datos y llama al endpoint /api/auth/login. */
+
 import { useState, type FormEvent } from "react";
 import { apiRequest, ApiError } from "../api/http";
 import { PasswordField } from "./PasswordField";

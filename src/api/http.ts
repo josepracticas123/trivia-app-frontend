@@ -1,3 +1,5 @@
+/* Cliente HTTP: centraliza fetch a la API y manejo de errores. */
+
 import { env } from '../config/env'
 
 export class ApiError extends Error {

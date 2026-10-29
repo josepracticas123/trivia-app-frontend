@@ -1,8 +1,11 @@
+/* Componente raíz: gestiona las pantallas (home, registro, login) y el token en memoria. */
+
 import { useState } from "react";
 import { LoginForm } from "./components/LoginForm";
 import { RegisterForm } from "./components/RegisterForm";
 import { GameLobby } from "./components/GameLobby";
-type Screen = "home" | "register" | "login" | "lobby";
+import { GameRoom } from "./components/GameRoom";
+type Screen = "home" | "register" | "login" | "lobby" | "room";
 
 function App() {
   // Estado temporal para navegar sin instalar un router.
@@ -11,7 +14,25 @@ function App() {
 
   // El JWT vive en React y se pierde al recargar la página.
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   // Con sesión iniciada, mostramos las partidas del usuario.
+  
+  if (screen === "room" && selectedGameId && sessionToken) {
+    return(
+      <main className="min-h-screen bg-[#0B0F1A] px-4 py-6 text-[#F8FAFC] sm:py-10">
+       <div className="mx-auto max-w-4xl">
+        <GameRoom
+        gameId={selectedGameId}
+        token={sessionToken}
+        onBack={()=> setScreen("lobby")}/>
+       </div>
+      </main>
+    );
+  }
+
+
+
+
   if (screen === "lobby" && sessionToken) {
     return (
       <main className="min-h-screen bg-[#0B0F1A] px-4 py-6 text-[#F8FAFC] sm:py-10">
@@ -21,6 +42,10 @@ function App() {
             onLogout={() => {
               setSessionToken(null);
               setScreen("home");
+            }}
+            onOpenGame={(gameId) => {
+              setSelectedGameId(gameId);
+              setScreen("room");
             }}
           />
         </div>

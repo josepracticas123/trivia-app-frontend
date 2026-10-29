@@ -1,3 +1,5 @@
+/* Campo de contraseña reutilizable con botón mostrar/ocultar. */
+
 import { useState } from "react";
 
 type PasswordFieldProps = {

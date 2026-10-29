@@ -1,7 +1,10 @@
+/* Sala de partida: muestra estado y permite jugar. */
+
 import { useEffect, useState } from "react";
 import {
   createMultiplayerGame,
   getMyGames,
+  joinMultiplayerGame,
   type GameHistoryItem,
 } from "../api/games";
 import { ApiError } from "../api/http";
@@ -9,9 +12,10 @@ import { ApiError } from "../api/http";
 type GameLobbyProps = {
   token: string;
   onLogout: () => void;
+  onOpenGame: (gameId: number) => void;
 };
 
-export function GameLobby({ token, onLogout }: GameLobbyProps) {
+export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
   const [games, setGames] = useState<GameHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,6 +24,8 @@ export function GameLobby({ token, onLogout }: GameLobbyProps) {
   const [isCreating, setIsCreating] = useState(false);
   //Guardamos el cóigo para mostrásrselo al usuario después de crear la sala.
   const [createdRoomCode, setCreatedRoomCode] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
     // Evita actualizar el componente si el usuario sale durante la petición.
@@ -78,6 +84,24 @@ export function GameLobby({ token, onLogout }: GameLobbyProps) {
       setIsCreating(false);
     }
   }
+    async function handleJoinRoom() {
+    setError("");
+    setIsJoining(true);
+
+    try {
+      await joinMultiplayerGame(token, joinCode);
+      setJoinCode("");
+      setReloadKey((current) => current + 1);
+    } catch (requestError) {
+      setError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "No se pudo entrar en la sala.",
+      );
+    } finally {
+      setIsJoining(false);
+    }
+  }
 
   function getStatusLabel(status: GameHistoryItem["status"]) {
     if (status === "WAITING") return "Esperando rival";
@@ -123,6 +147,22 @@ export function GameLobby({ token, onLogout }: GameLobbyProps) {
         >
           {isLoading ? "Cargando…" : "Actualizar"}
         </button>
+                <input
+          value={joinCode}
+          onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+          placeholder="Código de sala"
+          maxLength={6}
+          className="rounded-lg border border-[#3A4660] bg-[#101625] px-3 py-2 text-sm"
+        />
+
+        <button
+          type="button"
+          onClick={handleJoinRoom}
+          disabled={isJoining || joinCode.length !== 6}
+          className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          {isJoining ? "Entrando…" : "Unirse"}
+        </button>
       </div>
       {error && (
         <p className="mt-4 text-sm text-red-300" role="alert">
@@ -147,6 +187,13 @@ export function GameLobby({ token, onLogout }: GameLobbyProps) {
               <p className="mt-1 text-sm text-[#94A3B8]">
                 {getStatusLabel(game.status)} · Puntuación: {game.score}
               </p>
+                            <button
+                type="button"
+                onClick={() => onOpenGame(game.id)}
+                className="mt-3 text-sm font-semibold text-[#A3E635]"
+              >
+                Abrir sala
+              </button>
             </li>
           ))}
         </ul>

@@ -1,3 +1,5 @@
+/* Configuración pública: lee variables Vite y valida su presencia. */
+
 const removeTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
 const apiUrl = import.meta.env.VITE_API_URL
