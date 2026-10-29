@@ -1,41 +1,30 @@
-import { useState, type FormEvent } from "react";
-import { PasswordField } from './components/PasswordField'
-
-type Screen = "home" | "register" | "login";
+import { useState } from "react";
+import { LoginForm } from "./components/LoginForm";
+import { RegisterForm } from "./components/RegisterForm";
+import { GameLobby } from "./components/GameLobby";
+type Screen = "home" | "register" | "login" | "lobby";
 
 function App() {
   // Estado temporal para navegar sin instalar un router.
   const [screen, setScreen] = useState<Screen>("home");
-  // Cada campo controlado guarda su valor en el estado de React.
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [registerMessage, setRegisterMessage] = useState("");
-  const [loginMessage, setLoginMessage] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
 
-  function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (password.length < 8) {
-      setLoginMessage("La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
-
-    setLoginMessage(
-      "Formulario válido. En el siguiente paso lo conectaremos al backend.",
-    );
-  }
-  // Por ahora validamos en el navegador. Más adelante enviaremos estos datos a la API.
-  function handleRegisterSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (password.length < 8) {
-      setRegisterMessage("La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
-
-    setRegisterMessage(
-      "Formulario válido. En el siguiente paso lo enviaremos al backend.",
+  // El JWT vive en React y se pierde al recargar la página.
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  // Con sesión iniciada, mostramos las partidas del usuario.
+  if (screen === "lobby" && sessionToken) {
+    return (
+      <main className="min-h-screen bg-[#0B0F1A] px-4 py-6 text-[#F8FAFC] sm:py-10">
+        <div className="mx-auto max-w-4xl">
+          <GameLobby
+            token={sessionToken}
+            onLogout={() => {
+              setSessionToken(null);
+              setScreen("home");
+            }}
+          />
+        </div>
+      </main>
     );
   }
   //Sección de acceso a crear cuenta, con sus inputs.
@@ -62,104 +51,26 @@ function App() {
           </h1>
 
           {isRegister ? (
-            <form onSubmit={handleRegisterSubmit} className="mt-8 space-y-5">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="mb-2 block text-sm font-semibold"
-                >
-                  Nombre
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                  autoComplete="name"
-                  className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-2 block text-sm font-semibold"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  autoComplete="email"
-                  className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
-                />
-              </div>
-
-              <PasswordField
-                id="password"
-                value={password}
-                onChange={setPassword}
-                autoComplete="new-password"
-                hint="Mínimo 8 caracteres."
-              />
-
-              {registerMessage && (
-                <p className="rounded-lg bg-[#28364D] p-3 text-sm text-[#F8FAFC]">
-                  {registerMessage}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0]"
-              >
-                Crear cuenta
-              </button>
-            </form>
+            <RegisterForm
+              onRegistered={() => {
+                setLoginNotice("Cuenta creada. Inicia sesión para continuar.");
+                setScreen("login");
+              }}
+            />
           ) : (
-            <form onSubmit={handleLoginSubmit} className="mt-8 space-y-5">
-              <div>
-                <label
-                  htmlFor="login-email"
-                  className="mb-2 block text-sm font-semibold"
-                >
-                  Email
-                </label>
-                <input
-                  id="login-email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  autoComplete="email"
-                  className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
-                />
-              </div>
+            <LoginForm
+              notice={loginNotice}
+              onLoggedIn={(response) => {
+                // Guardamos el token para usarlo en las peticiones autenticadas.
+                setSessionToken(response.token);
 
-              <PasswordField
-                id="login-password"
-                value={password}
-                onChange={setPassword}
-                autoComplete="current-password"
-              />
+                // Quitamos el aviso de registro después del login.
+                setLoginNotice("");
 
-              {loginMessage && (
-                <p className="rounded-lg bg-[#28364D] p-3 text-sm text-[#F8FAFC]">
-                  {loginMessage}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0]"
-              >
-                Iniciar sesión
-              </button>
-            </form>
+                // Volvemos a la portada.
+                setScreen("lobby");
+              }}
+            />
           )}
         </section>
       </main>
@@ -194,24 +105,39 @@ function App() {
               <p className="mt-5 max-w-md text-base leading-7 text-[#94A3B8]">
                 Crea una partida, comparte el código y demuestra quién sabe más.
               </p>
+              {sessionToken ? (
+                <div className="mt-9 space-y-3">
+                  <p className="text-sm text-[#A3E635]" role="status">
+                    Sesión iniciada correctamente.
+                  </p>
 
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => setScreen("register")}
-                  className="rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0]"
-                >
-                  Crear cuenta
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setSessionToken(null)}
+                    className="rounded-xl border border-[#3A4660] bg-[#1D2639] px-5 py-3.5 font-bold text-[#F8FAFC] transition hover:border-[#A3E635] hover:bg-[#27334D]"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => setScreen("register")}
+                    className="rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0]"
+                  >
+                    Crear cuenta
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setScreen("login")}
-                  className="rounded-xl border border-[#3A4660] bg-[#1D2639] px-5 py-3.5 font-bold text-[#F8FAFC] transition hover:border-[#A3E635] hover:bg-[#27334D]"
-                >
-                  Iniciar sesión
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => setScreen("login")}
+                    className="rounded-xl border border-[#3A4660] bg-[#1D2639] px-5 py-3.5 font-bold text-[#F8FAFC] transition hover:border-[#A3E635] hover:bg-[#27334D]"
+                  >
+                    Iniciar sesión
+                  </button>
+                </div>
+              )}
             </div>
 
             <aside className="border-t border-[#2A344A] bg-[#101625] p-8 lg:border-t-0 lg:border-l sm:p-10">

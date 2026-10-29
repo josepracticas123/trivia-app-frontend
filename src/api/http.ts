@@ -2,11 +2,13 @@ import { env } from '../config/env'
 
 export class ApiError extends Error {
   public readonly status: number
+  public readonly code?: string
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
   }
 }
 
@@ -31,11 +33,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => null)
+    const errorPayload =
+      typeof payload === 'object' && payload !== null && 'error' in payload
+        ? payload.error
+        : payload
     const message =
-      typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string'
-        ? payload.message
+      typeof errorPayload === 'object' && errorPayload !== null && 'message' in errorPayload && typeof errorPayload.message === 'string'
+        ? errorPayload.message
         : 'No se pudo completar la operación. Inténtalo de nuevo.'
-    throw new ApiError(message, response.status)
+    const code =
+      typeof errorPayload === 'object' && errorPayload !== null && 'code' in errorPayload && typeof errorPayload.code === 'string'
+        ? errorPayload.code
+        : undefined
+    throw new ApiError(message, response.status, code)
   }
 
   return response.json() as Promise<T>

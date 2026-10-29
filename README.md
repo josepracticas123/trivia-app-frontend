@@ -26,20 +26,21 @@ npm run typecheck
 npm run build
 ```
 
-## Estructura inicial
+## Estructura actual
 
 - `src/api/`: cliente HTTP y errores de API.
 - `src/config/`: configuración pública procedente de variables Vite.
-- `src/features/`: módulos de autenticación y partidas (se crearán al integrar los contratos del backend).
+- `src/components/`: formularios y controles reutilizables.
+- `src/features/`: módulos de partidas (se crearán al integrar ese flujo).
 - `src/socket/`: conexión Socket.IO autenticada (se añadirá con los eventos reales del backend).
 
 No se guardan credenciales de base de datos ni `JWT_SECRET` en este repositorio. El token de sesión se mantendrá solamente en memoria.
 
-## Pendiente de integración
+## Contratos del backend revisados
 
-Antes de implementar las pantallas necesitamos confirmar en el backend del reto 19:
+- Registro: `POST /api/auth/register` recibe `{ email, password }` y responde `201 { id, email }`.
+- Login: `POST /api/auth/login` recibe `{ email, password }` y responde `{ token, expiresIn, user }`.
+- Los errores usan `{ error: { code, message } }`.
+- Socket.IO autentica con `auth: { token }`. Para volver a una sala se emite `join:game`; después de `joined:game`, el cliente recupera el estado con `GET /api/games/:id`.
 
-- Rutas y cuerpos de registro, login, lista/creación/unión de partidas y envío de jugadas.
-- Forma de las respuestas y de los errores.
-- URL, namespace, eventos y formato de autenticación de Socket.IO.
-- Orígenes CORS autorizados para el servidor de Vite.
+Falta implementar en el frontend el login, el listado y ciclo de partidas, la sala, las jugadas y el flujo completo de reconexión. Para desarrollo local, configura `FRONTEND_ORIGIN=http://localhost:5173` en el backend y las URLs `VITE_API_URL`/`VITE_SOCKET_URL` en `.env.local`.
