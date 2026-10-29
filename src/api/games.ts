@@ -42,6 +42,7 @@ export function createMultiplayerGame(token: string) {
   });
 }
 export function joinMultiplayerGame(token: string, code: string) {
+  
   return apiRequest<{ id: number; status: string }>("/api/games/join", {
     method: "POST",
     token,
@@ -51,14 +52,43 @@ export function joinMultiplayerGame(token: string, code: string) {
 export type GameDetails = {
   id: number;
   status: "WAITING" | "ACTIVE" | "FINISHED";
+  currentTurn: {
+    userId: number;
+    gameQuestionId: number;
+  } | null;
+
+  questions: {
+    id: number;
+    statement: string;
+    answered: boolean;
+    choices: {
+      id: number;
+      text: string;
+    }[];
+  }[];
 };
 export function getGame(token: string, gameId: number) {
   return apiRequest<GameDetails>(`/api/games/${gameId}`, { token });
 }
 
 export function startMultiplayerGame(token: string, gameId: number) {
-  return apiRequest<{ id: Number; status: "ACTIVE" }>(
+  return apiRequest<{ id: number; status: "ACTIVE" }>(
     `/api/games/${gameId}/start`,
     { method: "POST", token },
+  );
+}
+export function submitAnswer(
+  token: string,
+  gameId: number,
+  gameQuestionId: number,
+  choiceId: number,
+) {
+  return apiRequest<{ roundComplete: boolean }>(
+    `/api/games/${gameId}/answers`,
+    {
+      method: "POST",
+      token,
+      body: { gameQuestionId, choiceId },
+    },
   );
 }

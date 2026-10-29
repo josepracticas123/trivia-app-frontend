@@ -14,24 +14,24 @@ function App() {
 
   // El JWT vive en React y se pierde al recargar la página.
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [sessionUserId, setSessionUserId] = useState<number | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   // Con sesión iniciada, mostramos las partidas del usuario.
-  
-  if (screen === "room" && selectedGameId && sessionToken) {
-    return(
+
+ if (screen === "room" && selectedGameId && sessionToken && sessionUserId !== null) {
+    return (
       <main className="min-h-screen bg-[#0B0F1A] px-4 py-6 text-[#F8FAFC] sm:py-10">
-       <div className="mx-auto max-w-4xl">
-        <GameRoom
-        gameId={selectedGameId}
-        token={sessionToken}
-        onBack={()=> setScreen("lobby")}/>
-       </div>
+        <div className="mx-auto max-w-4xl">
+          <GameRoom
+            gameId={selectedGameId}
+            token={sessionToken}
+            userId={sessionUserId}
+            onBack={() => setScreen("lobby")}
+          />
+        </div>
       </main>
     );
   }
-
-
-
 
   if (screen === "lobby" && sessionToken) {
     return (
@@ -42,6 +42,7 @@ function App() {
             onLogout={() => {
               setSessionToken(null);
               setScreen("home");
+              setSessionUserId(null);
             }}
             onOpenGame={(gameId) => {
               setSelectedGameId(gameId);
@@ -88,7 +89,7 @@ function App() {
               onLoggedIn={(response) => {
                 // Guardamos el token para usarlo en las peticiones autenticadas.
                 setSessionToken(response.token);
-
+                setSessionUserId(response.user.id);
                 // Quitamos el aviso de registro después del login.
                 setLoginNotice("");
 
