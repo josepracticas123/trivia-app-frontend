@@ -35,7 +35,7 @@ export function PasswordField({
           required
           minLength={8}
           autoComplete={autoComplete}
-          className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 pr-12 text-white outline-none transition focus:border-[#A3E635]"
+          className="w-full rounded-lg border border-[#3D3D3D] bg-[#0D0D0D] px-4 py-3 pr-12 text-white outline-none transition focus:border-[#A3E635]"
         />
 
         {/* No envía el formulario: únicamente cambia la visibilidad. */}
@@ -50,7 +50,7 @@ export function PasswordField({
         </button>
       </div>
 
-      {hint && <p className="mt-2 text-xs text-[#94A3B8]">{hint}</p>}
+      {hint && <p className="mt-2 text-xs text-[#A3A3A3]">{hint}</p>}
     </div>
   );
 }

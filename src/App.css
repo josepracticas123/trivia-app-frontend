@@ -1,0 +1,9 @@
+.ambient-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.34),
+    0 0 18px rgba(163, 230, 53, 0.06),
+    0 0 3px rgba(190, 242, 100, 0.12);
+}

@@ -13,9 +13,15 @@ type GameLobbyProps = {
   token: string;
   onLogout: () => void;
   onOpenGame: (gameId: number) => void;
+  onAuthenticationError: () => void;
 };
 
-export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
+export function GameLobby({
+  token,
+  onLogout,
+  onOpenGame,
+  onAuthenticationError,
+}: GameLobbyProps) {
   const [games, setGames] = useState<GameHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,6 +49,10 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
         }
       } catch (requestError) {
         if (!isCancelled) {
+          if (requestError instanceof ApiError && requestError.status === 401) {
+            onAuthenticationError();
+            return;
+          }
           setError(
             requestError instanceof ApiError
               ? requestError.message
@@ -61,7 +71,7 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
     return () => {
       isCancelled = true;
     };
-  }, [token, reloadKey]);
+  }, [onAuthenticationError, token, reloadKey]);
   async function handleCreateRoom() {
     setError("");
     setCreatedRoomCode("");
@@ -75,6 +85,10 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
       //Actualizamos el historial para incluir la sala reciente creada.
       setReloadKey((current) => current + 1);
     } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.status === 401) {
+        onAuthenticationError();
+        return;
+      }
       setError(
         requestError instanceof ApiError
           ? requestError.message
@@ -84,15 +98,19 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
       setIsCreating(false);
     }
   }
-    async function handleJoinRoom() {
+  async function handleJoinRoom() {
     setError("");
     setIsJoining(true);
 
     try {
-      await joinMultiplayerGame(token, joinCode);
+      const game = await joinMultiplayerGame(token, joinCode.trim());
       setJoinCode("");
-      setReloadKey((current) => current + 1);
+      onOpenGame(game.id);
     } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.status === 401) {
+        onAuthenticationError();
+        return;
+      }
       setError(
         requestError instanceof ApiError
           ? requestError.message
@@ -110,14 +128,14 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
   }
 
   return (
-    <section className="rounded-3xl border border-[#2A344A] bg-[#151B2B] p-6 sm:p-8">
+    <section className="ambient-card rounded-3xl border border-[#2B2B2B] bg-[#141414] p-6 sm:p-8">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-2xl font-black">Tus partidas</h2>
 
         <button
           type="button"
           onClick={onLogout}
-          className="text-sm font-semibold text-[#94A3B8] hover:text-[#A3E635]"
+          className="text-sm font-semibold text-[#A3A3A3] hover:text-[#A3E635]"
         >
           Cerrar sesión
         </button>
@@ -127,7 +145,7 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
           type="button"
           onClick={handleCreateRoom}
           disabled={isCreating}
-          className="mt-5 rounded-lg bg-[#A3E635] px-4 py-2 text-sm font-bold text-[#0B0F1A] disabled:cursor-wait disabled:opacity-60"
+          className="mt-5 rounded-lg bg-[#A3E635] px-4 py-2 text-sm font-bold text-[#090909] disabled:cursor-wait disabled:opacity-60"
         >
           {isCreating ? "Creando sala…" : "Crear sala"}
         </button>
@@ -143,22 +161,22 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
           type="button"
           onClick={() => setReloadKey((current) => current + 1)}
           disabled={isLoading}
-          className="mt-5 rounded-lg border border-[#3A4660] px-4 py-2 text-sm font-semibold hover:border-[#A3E635] disabled:opacity-60"
+          className="mt-5 rounded-lg border border-[#3D3D3D] px-4 py-2 text-sm font-semibold hover:border-[#A3E635] disabled:opacity-60"
         >
           {isLoading ? "Cargando…" : "Actualizar"}
         </button>
-                <input
+        <input
           value={joinCode}
           onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
           placeholder="Código de sala"
-          maxLength={6}
-          className="rounded-lg border border-[#3A4660] bg-[#101625] px-3 py-2 text-sm"
+          maxLength={32}
+          className="rounded-lg border border-[#3D3D3D] bg-[#0D0D0D] px-3 py-2 text-sm"
         />
 
         <button
           type="button"
           onClick={handleJoinRoom}
-          disabled={isJoining || joinCode.length !== 6}
+          disabled={isJoining || joinCode.trim().length === 0}
           className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold disabled:opacity-60"
         >
           {isJoining ? "Entrando…" : "Unirse"}
@@ -171,7 +189,7 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
       )}
 
       {!isLoading && !error && games.length === 0 && (
-        <p className="mt-6 text-sm text-[#94A3B8]">
+        <p className="mt-6 text-sm text-[#A3A3A3]">
           Todavía no tienes partidas.
         </p>
       )}
@@ -181,16 +199,16 @@ export function GameLobby({ token, onLogout, onOpenGame }: GameLobbyProps) {
           {games.map((game) => (
             <li
               key={game.id}
-              className="rounded-xl border border-[#2A344A] bg-[#101625] p-4"
+              className="ambient-card rounded-xl border border-[#2B2B2B] bg-[#0D0D0D] p-4"
             >
               <p className="font-semibold">Partida #{game.id}</p>
-              <p className="mt-1 text-sm text-[#94A3B8]">
+              <p className="mt-1 text-sm text-[#A3A3A3]">
                 {getStatusLabel(game.status)} · Puntuación: {game.score}
               </p>
                             <button
                 type="button"
                 onClick={() => onOpenGame(game.id)}
-                className="mt-3 text-sm font-semibold text-[#A3E635]"
+                className="mt-3 rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold text-[#A3E635] transition hover:bg-[#A3E635]/10"
               >
                 Abrir sala
               </button>

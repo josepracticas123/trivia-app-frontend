@@ -55,7 +55,7 @@ export function RegisterForm({ onRegistered }: RegisterFormProps) {
           required
           maxLength={254}
           autoComplete="email"
-          className="w-full rounded-lg border border-[#3A4660] bg-[#101625] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
+          className="w-full rounded-lg border border-[#3D3D3D] bg-[#0D0D0D] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
         />
       </div>
 
@@ -76,7 +76,7 @@ export function RegisterForm({ onRegistered }: RegisterFormProps) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#CBD5E1] to-[#94A3B8] px-5 py-3.5 font-bold text-[#0B0F1A] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#A8B1C0] disabled:cursor-wait disabled:opacity-60"
+        className="w-full rounded-xl bg-gradient-to-b from-[#F8FAFC] via-[#D4D4D4] to-[#A3A3A3] px-5 py-3.5 font-bold text-[#090909] shadow-lg shadow-black/20 transition hover:from-white hover:to-[#D4D4D4] disabled:cursor-wait disabled:opacity-60"
       >
         {isSubmitting ? 'Creando cuenta…' : 'Crear cuenta'}
       </button>
