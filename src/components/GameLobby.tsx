@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   createMultiplayerGame,
+  deleteWaitingGame,
   getMyGames,
   joinMultiplayerGame,
   type GameHistoryItem,
@@ -32,6 +33,7 @@ export function GameLobby({
   const [createdRoomCode, setCreatedRoomCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+  const [deletingGameId, setDeletingGameId] = useState<number | null>(null);
 
   useEffect(() => {
     // Evita actualizar el componente si el usuario sale durante la petición.
@@ -118,6 +120,32 @@ export function GameLobby({
       );
     } finally {
       setIsJoining(false);
+    }
+  }
+
+  async function handleDeleteGame(gameId: number) {
+    if (!window.confirm("¿Quieres eliminar esta sala? Esta acción no se puede deshacer.")) {
+      return;
+    }
+
+    setError("");
+    setDeletingGameId(gameId);
+    try {
+      await deleteWaitingGame(token, gameId);
+      setCreatedRoomCode("");
+      setReloadKey((current) => current + 1);
+    } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.status === 401) {
+        onAuthenticationError();
+        return;
+      }
+      setError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "No se pudo eliminar la sala. Revisa la conexión e inténtalo de nuevo.",
+      );
+    } finally {
+      setDeletingGameId(null);
     }
   }
 
@@ -212,6 +240,16 @@ export function GameLobby({
               >
                 Abrir sala
               </button>
+              {game.status === "WAITING" && (
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteGame(game.id)}
+                  disabled={deletingGameId !== null}
+                  className="ml-3 rounded-lg border border-red-400/70 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-950/40 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {deletingGameId === game.id ? "Eliminando..." : "Eliminar sala"}
+                </button>
+              )}
             </li>
           ))}
         </ul>

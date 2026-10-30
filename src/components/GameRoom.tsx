@@ -63,6 +63,10 @@ export function GameRoom({
       setSelectedChoiceId(null);
       void loadGame();
     });
+    socket.on("game:updated", () => {
+      setSelectedChoiceId(null);
+      void loadGame();
+    });
 
     return () => {
       socket.disconnect();
@@ -97,6 +101,8 @@ si o es creador o falta un jugador, muestra error*/
     (question) => question.id === game.currentTurn?.gameQuestionId,
   );
   const isYourTurn = game?.currentTurn?.userId === userId;
+  const currentPlayer = game?.players.find((player) => player.userId === userId);
+  const opponent = game?.players.find((player) => player.userId !== userId);
 
   async function handleAnswer(choiceId: number) {
     if (!currentQuestion || isAnswerSending) return;
@@ -154,17 +160,32 @@ si o es creador o falta un jugador, muestra error*/
 
       {game?.status === "WAITING" && (
         <div className="mt-6 space-y-4">
-          <p className="text-sm text-[#A3A3A3]" role="status">
-            Esperando a que se una el segundo jugador.
-          </p>
-          <button
-            type="button"
-            onClick={handleStart}
-            disabled={isStarting}
-            className="rounded-lg bg-[#A3E635] px-4 py-2 text-sm font-bold text-[#090909] transition hover:bg-[#BEF264] disabled:cursor-wait disabled:opacity-60"
-          >
-            {isStarting ? "Iniciando..." : "Iniciar partida"}
-          </button>
+          {game.players.length < 2 ? (
+            <p className="text-sm text-[#A3A3A3]" role="status">
+              Esperando a que se una el segundo jugador.
+            </p>
+          ) : currentPlayer?.isReady ? (
+            <p className="text-sm text-[#A3A3A3]" role="status">
+              Has aceptado iniciar la partida. Esperando a que el otro jugador
+              confirme.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-[#A3A3A3]" role="status">
+                {opponent?.isReady
+                  ? "El otro jugador ya está listo. Acepta para comenzar la partida."
+                  : "Acepta para indicar que estás listo. Las preguntas solo aparecerán cuando ambos aceptéis."}
+              </p>
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={isStarting}
+                className="rounded-lg bg-[#A3E635] px-4 py-2 text-sm font-bold text-[#090909] transition hover:bg-[#BEF264] disabled:cursor-wait disabled:opacity-60"
+              >
+                {isStarting ? "Confirmando..." : "Aceptar e iniciar partida"}
+              </button>
+            </>
+          )}
         </div>
       )}
       {game?.status === "ACTIVE" && currentQuestion && isYourTurn && (

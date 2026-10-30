@@ -652,6 +652,7 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
     vrPrev: 0,
     hold: 2.4,
     xRef: 0,
+    drift: 0,
     landX: 0,
     boost: false,
     contact: true,
@@ -1151,6 +1152,7 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
     s.climbT = 1.15 + (s.alt - s.y) / 420;
     s.hold = Math.max(0, num(P.hoverTime, 2.4));
     s.xRef = s.x;
+    s.drift = (Math.random() < 0.5 ? -1 : 1) * clamp(num(P.lateralDrift, 0), 0, s.W * 0.28);
     wake();
     return true;
   };
@@ -1292,6 +1294,8 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
       const yr = s.y0 + span * jerk(u);
       const vr = (span * jerkV(u)) / s.climbT;
       const ar = (span * jerkA(u)) / (s.climbT * s.climbT);
+      // Se desplaza de un lado a otro durante el ascenso y vuelve al centro al terminar.
+      xt = s.xRef + s.drift * Math.sin(Math.PI * 2 * clamp(u, 0, 1));
       total = (G + ar + 30 * (yr - s.y) + 8 * (vr - s.vy)) / (G * cs);
       control = true;
       if (u >= 1) {
@@ -2020,6 +2024,7 @@ export default function FlyingButton({
   radius,
   altitude = 170,
   hoverTime = 2.4,
+  lateralDrift = 0,
   jets = 2,
   thrusters = true,
   trigger = 'hover',
@@ -2063,6 +2068,7 @@ export default function FlyingButton({
     size,
     altitude,
     hoverTime,
+    lateralDrift,
     jets: jetCount,
     thrusters: Boolean(thrusters),
     trigger,

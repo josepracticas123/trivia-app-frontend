@@ -49,9 +49,23 @@ export function joinMultiplayerGame(token: string, code: string) {
     body: { code },
   });
 }
+
+export function deleteWaitingGame(token: string, gameId: number) {
+  return apiRequest<void>(`/api/games/${gameId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export type GameDetails = {
   id: number;
   status: "WAITING" | "ACTIVE" | "FINISHED";
+  players: {
+    userId: number;
+    turnOrder: number;
+    score: number;
+    isReady: boolean;
+  }[];
   currentTurn: {
     userId: number;
     gameQuestionId: number;
@@ -72,7 +86,11 @@ export function getGame(token: string, gameId: number) {
 }
 
 export function startMultiplayerGame(token: string, gameId: number) {
-  return apiRequest<{ id: number; status: "ACTIVE" }>(
+  return apiRequest<{
+    id: number;
+    status: "WAITING" | "ACTIVE";
+    started: boolean;
+  }>(
     `/api/games/${gameId}/start`,
     { method: "POST", token },
   );

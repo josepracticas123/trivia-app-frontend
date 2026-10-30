@@ -53,7 +53,7 @@ function App() {
     if (isEntering) return;
 
     setIsEntering(true);
-    window.setTimeout(() => setScreen("home"), 4600);
+    window.setTimeout(() => setScreen("home"), 3200);
   };
   // Con sesión iniciada, mostramos las partidas del usuario.
 
@@ -71,6 +71,8 @@ function App() {
             textColor="#090909"
             thrustColor="#BEF264"
             smokeColor="#F8FAFC"
+            hoverTime={1}
+            lateralDrift={72}
             groundClearance={0}
             groundClearanceRatio={0.22}
             size="large"
@@ -99,8 +101,8 @@ function App() {
               fontSize={52}
               tileColor="#141414"
               textColor="#A3E635"
-              flipDuration={0.1}
-              stagger={0.07}
+              flipDuration={0.15}
+              stagger={0.1}
               flipsPerChar={7}
               glare={0.18}
               depth={0.65}
