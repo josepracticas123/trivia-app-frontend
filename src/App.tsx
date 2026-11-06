@@ -6,7 +6,6 @@ import { RegisterForm } from "./components/RegisterForm";
 import { GameLobby } from "./components/GameLobby";
 import { GameRoom } from "./components/GameRoom";
 import ElectricBorder from "./components/ElectricBorder";
-import LaserFlow from "./components/LaserFlow";
 import FlyingButton from "./components/FlyingButton";
 import LetterGlitch from "./components/LetterGlitch";
 import SplitFlapText from "./components/SplitFlapText";
@@ -86,12 +85,12 @@ function AppBackground() {
     >
       <LetterGlitch
         className="absolute inset-0"
-        glitchColors={["#FFFFFF", "#61DCA3"]}
-        baseColor="#FFFFFF"
-        baseOpacity={0.16}
+        glitchColors={["#A3E635", "#F8FAFC"]}
+        baseColor="#F8FAFC"
+        baseOpacity={0.19}
         glitchAmount={0.5}
         density={0.9}
-        speed={1}
+        speed={0.6}
         interactive={false}
         centerFade={0}
         backgroundColor="#090909"
@@ -101,6 +100,7 @@ function AppBackground() {
     </div>
   );
 }
+
 function useReducedMotion() {
   const [reducedMotion, setReducedMotion] = useState(() =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -267,7 +267,10 @@ function App() {
               flipsPerChar={7}
               glare={0.18}
               depth={0.65}
-              style={{ "--split-flap-font-size": "clamp(3rem, 13vw, 5.5rem)" }}
+              style={{
+                "--split-flap-font-size": "clamp(2.25rem, 12vw, 5.5rem)",
+                "--split-flap-gap": "clamp(3px, 1.5vw, 6px)",
+              }}
             />
           </div>
           <p className="mt-5 max-w-sm text-base leading-7 text-[#D4D4D4]">
@@ -288,14 +291,23 @@ function App() {
       <main className="relative isolate min-h-screen overflow-hidden bg-[#090909]/90 px-4 py-6 text-[#F8FAFC] sm:py-10">
         <AppBackground />
         <div className="relative z-10 mx-auto max-w-4xl">
-          <GameRoom
-            key={selectedGameId}
-            gameId={selectedGameId}
-            token={sessionToken}
-            userId={sessionUserId}
-            onBack={() => navigate("lobby")}
-            onAuthenticationError={handleAuthenticationError}
-          />
+          <ElectricBorder
+            color="#A3E635"
+            glowColor="#BEF264"
+            borderRadius={24}
+            active={!prefersReducedMotion}
+            style={undefined}
+          >
+            <GameRoom
+              key={selectedGameId}
+              gameId={selectedGameId}
+              token={sessionToken}
+              userId={sessionUserId}
+              onBack={() => navigate("lobby")}
+              onOpenGame={(gameId) => navigate("room", gameId)}
+              onAuthenticationError={handleAuthenticationError}
+            />
+          </ElectricBorder>
         </div>
       </main>
     );
@@ -306,15 +318,23 @@ function App() {
       <main className="relative isolate min-h-screen overflow-hidden bg-[#090909]/90 px-4 py-6 text-[#F8FAFC] sm:py-10">
         <AppBackground />
         <div className="relative z-10 mx-auto max-w-4xl">
-          <GameLobby
-            token={sessionToken}
-            userId={sessionUserId!}
-            displayName={sessionDisplayName ?? ""}
-            onDisplayNameUpdated={handleDisplayNameUpdated}
-            onLogout={() => clearSession()}
-            onOpenGame={(gameId) => navigate("room", gameId)}
-            onAuthenticationError={handleAuthenticationError}
-          />
+          <ElectricBorder
+            color="#A3E635"
+            glowColor="#BEF264"
+            borderRadius={24}
+            active={!prefersReducedMotion}
+            style={undefined}
+          >
+            <GameLobby
+              token={sessionToken}
+              userId={sessionUserId!}
+              displayName={sessionDisplayName ?? ""}
+              onDisplayNameUpdated={handleDisplayNameUpdated}
+              onLogout={() => clearSession()}
+              onOpenGame={(gameId) => navigate("room", gameId)}
+              onAuthenticationError={handleAuthenticationError}
+            />
+          </ElectricBorder>
         </div>
       </main>
     );
@@ -377,7 +397,7 @@ function App() {
                   setLoginNotice("");
 
                   // Volvemos a la portada.
-                  navigate("lobby");
+                  navigate("lobby", null, true);
                 }}
               />
             )}
@@ -405,20 +425,16 @@ function App() {
           </span>
         </header>
 
-        <section className="ambient-card relative overflow-hidden rounded-3xl border border-[#2B2B2B] bg-[#141414] shadow-2xl shadow-black/30">
-          <LaserFlow
-            className="z-0 opacity-80"
-            style={{ position: "absolute", inset: 0 }}
-            color="#A3E635"
-            intensity={1.2}
-            speed={1}
-            beamWidth={1.2}
-            paused={prefersReducedMotion}
-            surfaceRef={undefined}
-            revealImage={undefined}
-            dpr={undefined}
-          />
-          <div className="relative z-10 grid lg:grid-cols-[1.2fr_0.8fr]">
+        <ElectricBorder
+          className="relative z-10"
+          color="#A3E635"
+          glowColor="#BEF264"
+          borderRadius={24}
+          active={!prefersReducedMotion}
+          style={undefined}
+        >
+          <section className="ambient-card relative z-10 rounded-3xl border border-[#2B2B2B] bg-[#141414] shadow-2xl shadow-black/30">
+          <div className="relative z-10 grid overflow-hidden rounded-[23px] lg:grid-cols-[1.2fr_0.8fr]">
             <div className="p-8 sm:p-12">
               <div className="mb-8 flex items-center gap-2 text-sm font-bold text-[#A3E635]">
                 <span className="h-2 w-2 rounded-full bg-[#A3E635]" />
@@ -439,6 +455,15 @@ function App() {
                     Sesión iniciada correctamente.
                   </p>
 
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => navigate("lobby")}
+                    className="rounded-xl bg-[#A3E635] px-5 py-3.5 font-bold text-[#090909] transition hover:bg-[#BEF264]"
+                  >
+                    Ir a tus partidas
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => clearSession()}
@@ -446,6 +471,7 @@ function App() {
                   >
                     Cerrar sesión
                   </button>
+                  </div>
                 </div>
               ) : (
                 <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -497,7 +523,8 @@ function App() {
               </div>
             </aside>
           </div>
-        </section>
+          </section>
+        </ElectricBorder>
       </div>
     </main>
   );

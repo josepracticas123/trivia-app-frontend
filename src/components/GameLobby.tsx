@@ -1,6 +1,7 @@
 /* Sala de partida: muestra estado y permite jugar. */
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { io } from "socket.io-client";
 import {
   createIndividualGame,
   createMultiplayerGame,
@@ -10,6 +11,8 @@ import {
   type GameHistoryItem,
 } from "../api/games";
 import { apiRequest, ApiError } from "../api/http";
+import { env } from "../config/env";
+import { OnlinePlayers } from "./OnlinePlayers";
 
 type GameLobbyProps = {
   token: string;
@@ -53,10 +56,13 @@ export function GameLobby({
   //Evitar crear varias salas mientras la petición está pendiente
   const [isCreating, setIsCreating] = useState(false);
   const [isCreatingIndividual, setIsCreatingIndividual] = useState(false);
+  const [isOnlinePlayersOpen, setIsOnlinePlayersOpen] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const [deletingGameId, setDeletingGameId] = useState<number | null>(null);
+  const [confirmingGameId, setConfirmingGameId] = useState<number | null>(null);
   const [copiedCode, setCopiedCode] = useState("");
+  const copiedCodeTimeoutRef = useRef<number | null>(null);
   const [profileName, setProfileName] = useState(displayName);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -105,7 +111,12 @@ export function GameLobby({
       setError("");
 
       try {
-        const response = await getMyGames(token, page, pageSize);
+        const response = await getMyGames(
+          token,
+          page,
+          pageSize,
+          selectedStatus === "ALL" ? undefined : selectedStatus,
+        );
 
         if (!isCancelled) {
           setGames(response.items);
@@ -135,12 +146,43 @@ export function GameLobby({
     return () => {
       isCancelled = true;
     };
-  }, [onAuthenticationError, page, reloadKey, token]);
+  }, [onAuthenticationError, page, reloadKey, selectedStatus, token]);
+
+  useEffect(() => {
+    const socket = io(env.socketUrl, { auth: { token } });
+    const refreshHistory = () => {
+      setReloadKey((current) => current + 1);
+    };
+
+    socket.on("game:created", refreshHistory);
+    socket.on("game:joined", refreshHistory);
+
+    return () => {
+      socket.off("game:created", refreshHistory);
+      socket.off("game:joined", refreshHistory);
+      socket.disconnect();
+    };
+  }, [token]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedCodeTimeoutRef.current !== null) {
+        window.clearTimeout(copiedCodeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   async function handleCopyCode(code: string) {
     try {
       await navigator.clipboard.writeText(code);
       setCopiedCode(code);
+      if (copiedCodeTimeoutRef.current !== null) {
+        window.clearTimeout(copiedCodeTimeoutRef.current);
+      }
+      copiedCodeTimeoutRef.current = window.setTimeout(() => {
+        setCopiedCode("");
+        copiedCodeTimeoutRef.current = null;
+      }, 2500);
     } catch {
       setError(
         "No se pudo copiar el código. Selecciónalo y cópialo manualmente.",
@@ -195,11 +237,17 @@ export function GameLobby({
   }
 
   async function handleJoinRoom() {
+    const normalizedCode = joinCode.trim().toUpperCase();
+    if (!normalizedCode) {
+      setError("Introduce un código de sala para poder unirte.");
+      return;
+    }
+
     setError("");
     setIsJoining(true);
 
     try {
-      const game = await joinMultiplayerGame(token, joinCode.trim());
+      const game = await joinMultiplayerGame(token, normalizedCode);
       setJoinCode("");
       onOpenGame(game.id);
     } catch (requestError) {
@@ -217,19 +265,17 @@ export function GameLobby({
     }
   }
 
-  async function handleDeleteGame(gameId: number) {
-    if (
-      !window.confirm(
-        "¿Quieres eliminar esta sala? Esta acción no se puede deshacer.",
-      )
-    ) {
-      return;
-    }
+  function handleJoinSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void handleJoinRoom();
+  }
 
+  async function handleDeleteGame(gameId: number) {
     setError("");
     setDeletingGameId(gameId);
     try {
       await deleteWaitingGame(token, gameId);
+      setConfirmingGameId(null);
       setReloadKey((current) => current + 1);
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 401) {
@@ -250,6 +296,39 @@ export function GameLobby({
     if (status === "WAITING") return "Esperando rival";
     if (status === "ACTIVE") return "En curso";
     return "Finalizada";
+  }
+
+  function getStatusClass(status: GameHistoryItem["status"]) {
+    if (status === "WAITING")
+      return "border-amber-400/40 bg-amber-400/10 text-amber-200";
+    if (status === "ACTIVE")
+      return "border-sky-400/40 bg-sky-400/10 text-sky-200";
+    return "border-[#A3E635]/40 bg-[#A3E635]/10 text-[#A3E635]";
+  }
+
+  function getModeLabel(mode: GameHistoryItem["mode"]) {
+    return mode === "MULTIPLAYER"
+      ? "Jugado: multijugador"
+      : "Jugado: individual";
+  }
+
+  function getModeClass(mode: GameHistoryItem["mode"]) {
+    return mode === "MULTIPLAYER"
+      ? "border-violet-400/40 bg-violet-400/10 text-violet-200"
+      : "border-[#A3A3A3]/40 bg-[#A3A3A3]/10 text-[#D4D4D4]";
+  }
+
+  function getFilterSummary(status: GameStatusFilter, count: number) {
+    if (status === "ALL") return "en total";
+    if (status === "WAITING") return "en espera";
+    if (status === "ACTIVE") return "en curso";
+    return count === 1 ? "finalizada" : "finalizadas";
+  }
+
+  function getOpenGameLabel(game: GameHistoryItem) {
+    if (game.status === "FINISHED") return "Ver resultado";
+    if (game.status === "ACTIVE") return "Continuar partida";
+    return "Abrir sala";
   }
   // El backend entrega fechas ISO, el navegador las presenta en la zona local
   function formatDate(value: string) {
@@ -272,14 +351,20 @@ export function GameLobby({
     if (game.isDraw) return "Empate";
     return game.winnerUserId === userId ? "Ganaste" : "Perdiste";
   }
-  // No modificamos los datos recibidos: solo decidimos qué tarjetas mostrar.
-  const visibleGames =
-    selectedStatus === "ALL"
-      ? games
-      : games.filter((game) => game.status === selectedStatus);
 
+  function handleStatusFilter(status: GameStatusFilter) {
+    setSelectedStatus(status);
+    setPage(1);
+  }
+  const handleRefreshHistory = useCallback(() => {
+    setReloadKey((current) => current + 1);
+  }, []);
+  // No modificamos los datos recibidos: solo decidimos qué tarjetas mostrar.
   return (
-    <section className="ambient-card rounded-3xl border border-[#2B2B2B] bg-[#141414] p-6 sm:p-8">
+    <section
+      className="ambient-card relative z-10 rounded-3xl border border-[#2B2B2B] bg-[#141414] p-6 sm:p-8"
+      aria-busy={isLoading}
+    >
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-2xl font-black">Tus partidas</h2>
 
@@ -291,36 +376,41 @@ export function GameLobby({
           Cerrar sesión
         </button>
       </div>
-      <form
-        onSubmit={handleProfileSubmit}
-        className="mt-4 flex flex-wrap items-end gap-2"
-      >
-        <label className="text-sm text-[#A3A3A3]">
-          Tu nombre público
-          <input
-            value={profileName}
-            onChange={(event) => setProfileName(event.target.value)}
-            minLength={2}
-            maxLength={30}
-            required
-            className="mt-1 block rounded-lg border border-[#3D3D3D] bg-[#0D0D0D] px-3 py-2 text-sm text-white"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={isSavingProfile}
-          className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold text-[#A3E635] disabled:opacity-60"
+      <details className="mt-4 rounded-lg border border-[#2B2B2B] bg-[#0D0D0D] px-3 py-2">
+        <summary className="cursor-pointer text-sm font-semibold text-[#A3A3A3] hover:text-[#F8FAFC]">
+          Nombre visible para jugadores: <span className="text-[#A3E635]">{displayName}</span>
+        </summary>
+        <form
+          onSubmit={handleProfileSubmit}
+          className="mt-3 flex flex-wrap items-end gap-2"
         >
-          {isSavingProfile ? "Guardando…" : "Guardar nombre"}
-        </button>
-      </form>
+          <label className="text-sm text-[#A3A3A3]">
+            Nombre que verán los demás jugadores
+            <input
+              value={profileName}
+              onChange={(event) => setProfileName(event.target.value)}
+              minLength={2}
+              maxLength={30}
+              required
+              className="mt-1 block rounded-lg border border-[#3D3D3D] bg-[#141414] px-3 py-2 text-sm text-white"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={isSavingProfile}
+            className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold text-[#A3E635] disabled:opacity-60"
+          >
+            {isSavingProfile ? "Guardando…" : "Guardar nombre"}
+          </button>
+        </form>
+      </details>
       {/* Filtros visuales del historial. */}
       <div className="mt-5 flex flex-wrap gap-2" aria-label="Filtrar partidas">
         {statusFilters.map((filter) => (
           <button
             key={filter.value}
             type="button"
-            onClick={() => setSelectedStatus(filter.value)}
+            onClick={() => handleStatusFilter(filter.value)}
             aria-pressed={selectedStatus === filter.value}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
               selectedStatus === filter.value
@@ -332,49 +422,89 @@ export function GameLobby({
           </button>
         ))}
       </div>
-      <div className="mt-5 flex flex-wrap gap-4">
-        <button
-          type="button"
-          onClick={handleCreateRoom}
-          disabled={isCreating}
-          className="mt-5 rounded-lg bg-[#A3E635] px-4 py-2 text-sm font-bold text-[#090909] disabled:cursor-wait disabled:opacity-60"
-        >
-          {isCreating ? "Creando sala…" : "Crear sala"}
-        </button>
+      <p className="mt-3 text-xs text-[#A3A3A3]" role="status">
+        {isLoading
+          ? "Actualizando partidas…"
+          : `${total} ${total === 1 ? "partida" : "partidas"} ${getFilterSummary(selectedStatus, total)}`}
+      </p>
+      <div className="mt-6 space-y-4">
+        <div className="rounded-xl border border-[#2B2B2B] bg-[#0D0D0D] p-4">
+          <p className="text-xs font-bold tracking-[0.18em] text-[#A3E635]">MULTIJUGADOR</p>
+          <p className="mt-1 text-sm text-[#A3A3A3]">Juega con otra persona por código o con una invitación privada.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={handleCreateRoom} disabled={isCreating} className="rounded-lg border border-[#A3E635] bg-[#A3E635]/10 p-4 text-left transition hover:bg-[#A3E635]/15 disabled:cursor-wait disabled:opacity-60">
+              <span className="block text-sm font-bold text-[#A3E635]">{isCreating ? "Creando sala…" : "Crear sala con código"}</span>
+              <span className="mt-1 block text-xs leading-5 text-[#D4D4D4]">Comparte un código con quien quieras jugar.</span>
+            </button>
+            <button type="button" onClick={() => setIsOnlinePlayersOpen(true)} className="rounded-lg border border-[#3D3D3D] p-4 text-left transition hover:border-[#A3E635] hover:bg-[#141414]">
+              <span className="block text-sm font-bold text-[#F8FAFC]">Retar online</span>
+              <span className="mt-1 block text-xs leading-5 text-[#A3A3A3]">Elige un jugador disponible y envíale una invitación privada.</span>
+            </button>
+          </div>
+          <OnlinePlayers token={token} userId={userId} onOpenGame={onOpenGame} onRefreshHistory={handleRefreshHistory} isOpen={isOnlinePlayersOpen} onOpenChange={setIsOnlinePlayersOpen} />
+        </div>
 
-        <button
-          type="button"
-          onClick={handleCreateIndividualGame}
-          disabled={isCreatingIndividual}
-          className="mt-5 rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-bold text-[#A3E635] disabled:cursor-wait disabled:opacity-60"
-        >
-          {isCreatingIndividual ? "Creando partida…" : "Jugar en solitario"}
-        </button>
+        <div className="rounded-xl border border-[#2B2B2B] bg-[#0D0D0D] p-4">
+          <p className="text-xs font-bold tracking-[0.18em] text-[#A3A3A3]">
+            UNIRSE A UNA SALA
+          </p>
+          <form
+            onSubmit={handleJoinSubmit}
+            className="mt-3 flex flex-col gap-2 sm:flex-row"
+          >
+            <input
+              value={joinCode}
+              onChange={(event) =>
+                setJoinCode(event.target.value.toUpperCase())
+              }
+              placeholder="Código de sala"
+              maxLength={32}
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              aria-describedby="join-code-help"
+              className="min-w-0 flex-1 rounded-lg border border-[#3D3D3D] bg-[#141414] px-3 py-2 text-sm"
+            />
 
-        <button
-          type="button"
-          onClick={() => setReloadKey((current) => current + 1)}
-          disabled={isLoading}
-          className="mt-5 rounded-lg border border-[#3D3D3D] px-4 py-2 text-sm font-semibold hover:border-[#A3E635] disabled:opacity-60"
-        >
-          {isLoading ? "Cargando…" : "Actualizar"}
-        </button>
-        <input
-          value={joinCode}
-          onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-          placeholder="Código de sala"
-          maxLength={32}
-          className="rounded-lg border border-[#3D3D3D] bg-[#0D0D0D] px-3 py-2 text-sm"
-        />
+            <button
+              type="submit"
+              disabled={isJoining || joinCode.trim().length === 0}
+              className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold disabled:opacity-60"
+            >
+              {isJoining ? "Entrando…" : "Unirse"}
+            </button>
+          </form>
+          <p
+            id="join-code-help"
+            className="mt-2 text-xs text-[#A3A3A3]"
+            role="status"
+          >
+            {joinCode.trim()
+              ? "Código listo. Pulsa Enter o Unirse."
+              : "Pega o escribe el código que te han compartido."}
+          </p>
+        </div>
 
-        <button
-          type="button"
-          onClick={handleJoinRoom}
-          disabled={isJoining || joinCode.trim().length === 0}
-          className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold disabled:opacity-60"
-        >
-          {isJoining ? "Entrando…" : "Unirse"}
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#2B2B2B] bg-[#0D0D0D] p-4">
+          <div>
+            <p className="text-xs font-bold tracking-[0.18em] text-[#A3A3A3]">PARTIDA INDIVIDUAL</p>
+            <p className="mt-1 text-sm text-[#A3A3A3]">Pon a prueba tus conocimientos a tu ritmo.</p>
+          </div>
+          <button type="button" onClick={handleCreateIndividualGame} disabled={isCreatingIndividual} className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-bold text-[#A3E635] disabled:cursor-wait disabled:opacity-60">
+            {isCreatingIndividual ? "Creando partida…" : "Jugar en solitario"}
+          </button>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setReloadKey((current) => current + 1)}
+            disabled={isLoading}
+            className="rounded-lg border border-[#3D3D3D] px-4 py-2 text-sm font-semibold text-[#A3A3A3] hover:border-[#A3E635] hover:text-[#F8FAFC] disabled:opacity-60"
+          >
+            {isLoading ? "Cargando…" : "Actualizar partidas"}
+          </button>
+        </div>
       </div>
       {error && (
         <p className="mt-4 text-sm text-red-300" role="alert">
@@ -382,7 +512,26 @@ export function GameLobby({
         </p>
       )}
 
-      {!isLoading && !error && visibleGames.length === 0 && (
+      {isLoading && games.length === 0 && !error && (
+        <div className="mt-6" role="status" aria-label="Cargando tus partidas">
+          <span className="sr-only">Cargando tus partidas…</span>
+          <div className="space-y-3" aria-hidden="true">
+            {[0, 1, 2].map((item) => (
+              <div
+                key={item}
+                className="animate-pulse rounded-xl border border-[#2B2B2B] bg-[#0D0D0D] p-4"
+              >
+                <div className="h-5 w-28 rounded bg-[#2B2B2B]" />
+                <div className="mt-3 h-4 w-3/4 rounded bg-[#202020]" />
+                <div className="mt-2 h-4 w-1/2 rounded bg-[#202020]" />
+                <div className="mt-4 h-9 w-28 rounded-lg bg-[#2B2B2B]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!isLoading && !error && games.length === 0 && (
         <p className="mt-6 text-sm text-[#A3A3A3]">
           {games.length === 0
             ? "Todavía no tienes partidas."
@@ -390,17 +539,27 @@ export function GameLobby({
         </p>
       )}
 
-      {visibleGames.length > 0 && (
+      {games.length > 0 && (
         <ul className="mt-6 space-y-3">
-          {visibleGames.map((game) => (
+          {games.map((game) => (
             <li
               key={game.id}
               className="ambient-card rounded-xl border border-[#2B2B2B] bg-[#0D0D0D] p-4"
             >
-              <p className="font-semibold">Partida #{game.id}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">Partida #{game.id}</p>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${getModeClass(game.mode)}`}>
+                    {getModeLabel(game.mode)}
+                  </span>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${getStatusClass(game.status)}`}>
+                    {getStatusLabel(game.status)}
+                  </span>
+                </div>
+              </div>
 
               <p className="mt-1 text-sm text-[#A3A3A3]">
-                {getStatusLabel(game.status)} · Creada el{" "}
+                Creada el{" "}
                 {formatDate(game.createdAt)}
               </p>
 
@@ -442,9 +601,9 @@ export function GameLobby({
               <button
                 type="button"
                 onClick={() => onOpenGame(game.id)}
-                className="mt-3 rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold text-[#A3E635]"
+                className="mt-3 w-full rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold text-[#A3E635] sm:w-auto"
               >
-                {game.status === "FINISHED" ? "Ver resultado" : "Abrir sala"}
+                {getOpenGameLabel(game)}
               </button>
 
               {/* Solo el creador ve la acción; el backend vuelve a comprobar el permiso. */}
@@ -452,16 +611,46 @@ export function GameLobby({
                 game.players.some(
                   (player) => player.userId === userId && player.isCreator,
                 ) && (
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteGame(game.id)}
-                    disabled={deletingGameId !== null}
-                    className="ml-3 rounded-lg border border-red-400/70 px-4 py-2 text-sm font-semibold text-red-300 disabled:opacity-60"
-                  >
-                    {deletingGameId === game.id
-                      ? "Eliminando…"
-                      : "Eliminar sala"}
-                  </button>
+                  <div className="mt-3">
+                    {confirmingGameId === game.id ? (
+                      <div
+                        className="rounded-lg border border-red-400/40 bg-red-950/30 p-3 text-sm text-red-100"
+                        role="alertdialog"
+                        aria-label="Confirmar eliminación de sala"
+                      >
+                        <p>La sala se eliminará y el rival no podrá entrar.</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingGameId(null)}
+                            disabled={deletingGameId === game.id}
+                            className="rounded-lg border border-[#3D3D3D] px-3 py-1.5 text-xs font-semibold text-[#D4D4D4] disabled:opacity-60"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteGame(game.id)}
+                            disabled={deletingGameId === game.id}
+                            className="rounded-lg border border-red-400/70 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 disabled:opacity-60"
+                          >
+                            {deletingGameId === game.id
+                              ? "Eliminando…"
+                              : "Sí, eliminar"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingGameId(game.id)}
+                        disabled={deletingGameId !== null}
+                        className="w-full rounded-lg border border-red-400/70 px-4 py-2 text-sm font-semibold text-red-300 disabled:opacity-60 sm:w-auto"
+                      >
+                        Eliminar sala…
+                      </button>
+                    )}
+                  </div>
                 )}
             </li>
           ))}

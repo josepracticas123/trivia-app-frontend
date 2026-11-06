@@ -70,6 +70,9 @@ export function RegisterForm({ onRegistered }: RegisterFormProps) {
           placeholder="Nombre que verán otros jugadores"
           className="w-full rounded-lg border border-[#3D3D3D] bg-[#0D0D0D] px-4 py-3 text-white outline-none transition focus:border-[#A3E635]"
         />
+        <p className="mt-1 text-right text-xs text-[#A3A3A3]" aria-live="polite">
+          {displayName.length}/30 caracteres
+        </p>
       </div>
       <div>
         <label

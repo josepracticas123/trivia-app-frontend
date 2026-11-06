@@ -72,6 +72,24 @@
   pointer-events: none;
 }
 
+@media (max-width: 360px) {
+  .split-flap-text {
+    letter-spacing: 0.02em;
+  }
+
+  .split-flap-text__tile {
+    width: 0.75em;
+  }
+}
+
+/* 374 px: evita que las seis fichas se recorten en la pantalla móvil. */
+@media (max-width: 400px) {
+  .split-flap-text {
+    max-width: 100%;
+    font-size: min(var(--split-flap-font-size, 52px), 12vw);
+  }
+}
+
 .split-flap-text__tile::after {
   content: '';
   position: absolute;

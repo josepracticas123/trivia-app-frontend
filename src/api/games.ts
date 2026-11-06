@@ -10,10 +10,12 @@ export type GamePlayer = {
 };
 
 //Cada tarjeta de GET /api/me/games
+export type GameStatus = "WAITING" | "ACTIVE" | "FINISHED";
+
 export type GameHistoryItem = {
   id: number;
   mode: "INDIVIDUAL" | "MULTIPLAYER";
-  status: "WAITING" | "ACTIVE" | "FINISHED";
+  status: GameStatus;
   code: string | null;
   createdAt: string; //ISO 8601
   finishedAt: string | null; //ISO 8601
@@ -32,11 +34,17 @@ type GameHistoryResponse = {
 };
 /* Obtiene la página de partidos del usuario autenticado
 apirequest añade Authorization: Bearer "token"*/
-export function getMyGames(token: string, page = 1, pageSize = 20) {
+export function getMyGames(
+  token: string,
+  page = 1,
+  pageSize = 20,
+  status?: GameStatus,
+) {
   const query = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
   });
+  if (status) query.set("status", status);
   return apiRequest<GameHistoryResponse>(`/api/me/games?${query}`, {
     token,
   });

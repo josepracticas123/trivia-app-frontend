@@ -8,6 +8,8 @@ type GameResultProps = {
   opponent?: GamePlayer;
   opponentName: string;
   onBack: () => void;
+  onPlayAgain?: () => void;
+  isPlayingAgain?: boolean;
 };
 
 // Cierra una partida sin calcular el ganador: solo presenta datos del backend.
@@ -19,6 +21,8 @@ export function GameResult({
   opponent,
   opponentName,
   onBack,
+  onPlayAgain,
+  isPlayingAgain = false,
 }: GameResultProps) {
   return (
     <section
@@ -45,13 +49,25 @@ export function GameResult({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={onBack}
-        className="mt-5 rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold text-[#A3E635]"
-      >
-        Volver a mis partidas
-      </button>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        {!isMultiplayer && onPlayAgain && (
+          <button
+            type="button"
+            onClick={onPlayAgain}
+            disabled={isPlayingAgain}
+            className="rounded-lg bg-[#A3E635] px-4 py-2 text-sm font-semibold text-[#090909] disabled:opacity-60"
+          >
+            {isPlayingAgain ? "Creando partida…" : "Jugar otra partida"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-lg border border-[#A3E635] px-4 py-2 text-sm font-semibold text-[#A3E635]"
+        >
+          Volver a mis partidas
+        </button>
+      </div>
     </section>
   );
 }

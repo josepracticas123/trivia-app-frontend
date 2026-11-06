@@ -46,7 +46,8 @@ const buildSequence = (target, flips, charset) => {
   return steps;
 };
 
-const toGlyph = char => (char === ' ' ? ' ' : char);
+// Avoid a source-encoding-dependent non-breaking space while tiles are empty.
+const toGlyph = char => (char === ' ' ? '\u00a0' : char);
 
 const shuffleIndices = count => {
   const list = Array.from({ length: count }, (_, index) => index);
